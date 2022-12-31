@@ -1,106 +1,3 @@
-# from bs4 import BeautifulSoup
-# import requests
-# import bs4
-# import locale
-# import re
-#
-# BASE_URL = "https://www.imdb.com/"
-# locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-#
-#
-# class GetTitleById:
-#     def getById(self, title_id):
-#         response = {}
-#         headers = {
-#             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36",
-#             "Accept-Encoding": "gzip, deflate",
-#             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "DNT": "1",
-#             "Connection": "close", "Upgrade-Insecure-Requests": "1"}
-#
-#         url = BASE_URL + 'title/' + title_id
-#         page = requests.get(url, headers=headers)
-#         soup = BeautifulSoup(page.text, 'html.parser')
-#         title_bar = soup.find('div', class_='title_bar_wrapper')
-#
-#         rating = float(title_bar.find(itemprop='ratingValue').get_text())
-#         rating_count = title_bar.find(itemprop='ratingCount').get_text()
-#         rating_count = locale.atoi(rating_count)
-#         release_year = title_bar.find(id='titleYear').get_text()
-#         release_year = re.findall('([0-9]{4,4})', release_year)[0]
-#         title_bar1 = title_bar.find('h1', class_='')
-#         title_bar1.span.decompose()
-#         title = title_bar1.get_text().rstrip()
-#         running_time = title_bar.find('time').get_text().lstrip().rstrip()
-#         summary_text = soup.find(
-#             'div', class_='summary_text').get_text().rstrip().lstrip()
-#
-#         # Storyline section
-#         storyline_dict = {}
-#         storyline = soup.find('div', {'id': 'titleStoryLine'})
-#
-#         storyline_summary = storyline.find('div', class_='inline canwrap')
-#         storyline_summary = storyline_summary.find(
-#             'span').text.rstrip().lstrip()
-#         plot_soup = storyline.findAll('div', 'see-more inline canwrap')[0]
-#         keywords_soup = plot_soup.find_all('span')
-#         keywords = []
-#         for keyword in keywords_soup:
-#             if keyword.get_text() != '|':
-#                 keywords.append(keyword.get_text())
-#         tagline_soup = storyline.find('div', class_='txt-block')
-#         tagline_soup.span.decompose()
-#         tagline_soup.h4.decompose()
-#         tagline = tagline_soup.get_text().lstrip().rstrip()
-#         genres_soup = storyline.findAll('div', 'see-more inline canwrap')[1]
-#         genres_soup = genres_soup.findAll('a')
-#         genres = []
-#         for gen in genres_soup:
-#             genres.append(gen.get_text().lstrip().rstrip())
-#
-#         # Storing storyline data in dictionary
-#         storyline_dict['plot'] = storyline_summary
-#         storyline_dict['plot_keywords'] = keywords
-#         storyline_dict['tagline'] = tagline
-#         storyline_dict['genres'] = genres
-#
-#         # Title detail section
-#         title_detail_soup = soup.find('div', {'id': 'titleDetails'})
-#         headings_soup = title_detail_soup.find_all(['h2', 'h3'])
-#         details_soup = title_detail_soup.find_all('div', class_='txt-block')
-#         detail_list = ['Official Sites:', 'Country:', 'Language:',
-#                        'Release Date:', 'Also Known As:', 'Filming Locations:']
-#         details = {}
-#         for detail in details_soup:
-#             try:
-#                 head = detail.find('h4')
-#                 if head.get_text() in detail_list:
-#                     if head.get_text() == 'Official Sites:':
-#                         official_site = {}
-#                         detail.h4.decompose()
-#                         a_tags = detail.find_all('a')
-#                         for a_tag in a_tags:
-#                             if a_tag.get_text() != 'See more':
-#                                 print(a_tag)
-#                                 data = url + a_tag['href']
-#                                 official_site[a_tag.get_text()] = data
-#                         details['official-sites'] = official_site
-#             except Exception as e:
-#                 print(e)
-#
-#         print(details)
-#
-#         # storing results in dictionary
-#         response['rating'] = rating
-#         response['rating_count'] = rating_count
-#         response['release_year'] = release_year
-#         response['title'] = title
-#         response['running_time'] = running_time
-#         response['summary_text'] = summary_text
-#         response['storyline'] = storyline_dict
-#         response['details'] = details
-#
-#         return response
-
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -124,7 +21,8 @@ class IMDb:
                 result = source.find('td', {'class': 'result_text'}).a
                 return result["href"].split("/")[2]
             except:
-                print("An error occured. Please report this issue (error_code=1) or wait for the next update.")
+                print(
+                    "An error occured. Please report this issue (error_code=1) or wait for the next update.")
                 return ""
 
     def getTitle(self, imdb_id, details=None):
@@ -140,6 +38,34 @@ class IMDb:
             return details["props"]["pageProps"]["aboveTheFoldData"]["releaseYear"]["year"]
         except:
             return ""
+
+    def getRelatedContent(self, imdb_id, details=None):
+        result = []
+        try:
+            details = IMDb.getDetails(self, imdb_id, details)
+            total_results = details["props"]["pageProps"]["mainColumnData"]["moreLikeThisTitles"]
+            for d in total_results['edges']:
+                result.append(d.get('node', {}).get('id', None))
+        except Exception as e:
+            print(e)
+        return result
+
+    def getGalleriesImage(self, imdb_id, details=None):
+        result = []
+        try:
+            details = IMDb.getDetails(self, imdb_id, details)
+            total_edge_image = details["props"]["pageProps"]["mainColumnData"]["titleMainImages"]
+            loop_iteration = 6 if ('total' not in total_edge_image) or (
+                total_edge_image['total'] > 6) else total_edge_image['total']
+            i, j = 0, 0
+            while i < loop_iteration or j < len(total_edge_image)-1:
+                if 'node' in total_edge_image['edges'][j] and 'url' in total_edge_image['edges'][j]['node']:
+                    result.append(total_edge_image['edges'][j]['node']['url'])
+                    i += 1
+                j += 1
+        except Exception as e:
+            print(e)
+        return result
 
     def getDirector(self, imdb_id, details=None, InList=False, name_id=False):
         return IMDb.getPeople(self, imdb_id, people_type="director", details=details, InList=InList, name_id=name_id)
@@ -203,7 +129,8 @@ class IMDb:
             if source is None:
                 source = IMDb.getPage(IMDb.url + "/title/" + imdb_id)
             li = source.find("li", {"data-testid": info_id})
-            div = li.find("div", {"class": "ipc-metadata-list-item__content-container"})
+            div = li.find(
+                "div", {"class": "ipc-metadata-list-item__content-container"})
             for a in div.find_all("a"):
                 info.append(a.text)
             if len(info) == 0:
@@ -310,7 +237,8 @@ class IMDb:
             if source is None:
                 source = IMDb.getPage(IMDb.url + "/title/" + imdb_id)
             div = source.find("div", {"data-testid": "reviews-header"})
-            reviews_count = div.find("span", {"class": "ipc-title__subtext"}).text
+            reviews_count = div.find(
+                "span", {"class": "ipc-title__subtext"}).text
             if "K" in reviews_count:
                 int_reviews_count = int(float(reviews_count[:-1]) * 1000)
             else:
@@ -326,23 +254,33 @@ class IMDb:
         details = IMDb.getDetails(self, imdb_id, source=source)
         if details != "":
             features["title"] = IMDb.getTitle(self, imdb_id, details)
-            features["release_year"] = IMDb.getReleaseYear(self, imdb_id, details)
+            features["release_year"] = IMDb.getReleaseYear(
+                self, imdb_id, details)
             features["imdb_id"] = imdb_id
-            features["director"] = IMDb.getDirector(self, imdb_id, details, InList, name_id)
-            features["creator"] = IMDb.getCreator(self, imdb_id, details, InList, name_id)
-            features["main_actors"] = IMDb.getMainActors(self, imdb_id, details, InList=True, name_id=name_id)
+            features["director"] = IMDb.getDirector(
+                self, imdb_id, details, InList, name_id)
+            features["creator"] = IMDb.getCreator(
+                self, imdb_id, details, InList, name_id)
+            features["main_actors"] = IMDb.getMainActors(
+                self, imdb_id, details, InList=True, name_id=name_id)
             features["countries"] = IMDb.getCountries(self, imdb_id, source)
             features["languages"] = IMDb.getLanguages(self, imdb_id, source)
             features["companies"] = IMDb.getCompanies(self, imdb_id, source)
             features["genre"] = IMDb.getGenres(self, imdb_id, details)
             features["type"] = IMDb.getType(self, imdb_id, details)
-            features["runtime"] = IMDb.getRuntime(self, imdb_id, details, seconds)
-            features["release_date"] = IMDb.getReleaseDate(self, imdb_id, details)
-            features["description"] = IMDb.getDescription(self, imdb_id, details)
-            features["content_rating"] = IMDb.getContentRating(self, imdb_id, details)
+            features["runtime"] = IMDb.getRuntime(
+                self, imdb_id, details, seconds)
+            features["release_date"] = IMDb.getReleaseDate(
+                self, imdb_id, details)
+            features["description"] = IMDb.getDescription(
+                self, imdb_id, details)
+            features["content_rating"] = IMDb.getContentRating(
+                self, imdb_id, details)
             features["rating"] = IMDb.getRating(self, imdb_id, details)
-            features["rating_count"] = IMDb.getRatingCount(self, imdb_id, details)
-            features["reviews_count"] = IMDb.getReviewsCount(self, imdb_id, source)
+            features["rating_count"] = IMDb.getRatingCount(
+                self, imdb_id, details)
+            features["reviews_count"] = IMDb.getReviewsCount(
+                self, imdb_id, source)
         if features != {}:
             return features
 
@@ -353,30 +291,45 @@ class IMDb:
         details = IMDb.getDetails(self, imdb_id, source=source)
         if details != "":
             features["title"] = IMDb.getTitle(self, imdb_id, details)
-            features["release_year"] = IMDb.getReleaseYear(self, imdb_id, details)
+            features["release_year"] = IMDb.getReleaseYear(
+                self, imdb_id, details)
             features["imdb_id"] = imdb_id
-            features["director"] = IMDb.getDirector(self, imdb_id, details, InList, name_id)
-            features["creator"] = IMDb.getCreator(self, imdb_id, details, InList, name_id)
-            features["main_actors"] = IMDb.getMainActors(self, imdb_id, details, InList=True, name_id=name_id)
+            features["director"] = IMDb.getDirector(
+                self, imdb_id, details, InList, name_id)
+            features["creator"] = IMDb.getCreator(
+                self, imdb_id, details, InList, name_id)
+            features["main_actors"] = IMDb.getMainActors(
+                self, imdb_id, details, InList=True, name_id=name_id)
             features["countries"] = IMDb.getCountries(self, imdb_id, source)
             features["languages"] = IMDb.getLanguages(self, imdb_id, source)
             features["companies"] = IMDb.getCompanies(self, imdb_id, source)
             features["genre"] = IMDb.getGenres(self, imdb_id, details)
             features["type"] = IMDb.getType(self, imdb_id, details)
-            features["runtime"] = IMDb.getRuntime(self, imdb_id, details, seconds)
-            features["release_date"] = IMDb.getReleaseDate(self, imdb_id, details)
-            features["description"] = IMDb.getDescription(self, imdb_id, details)
-            features["content_rating"] = IMDb.getContentRating(self, imdb_id, details)
+            features["runtime"] = IMDb.getRuntime(
+                self, imdb_id, details, seconds)
+            features["release_date"] = IMDb.getReleaseDate(
+                self, imdb_id, details)
+            features["description"] = IMDb.getDescription(
+                self, imdb_id, details)
+            features["content_rating"] = IMDb.getContentRating(
+                self, imdb_id, details)
             features["rating"] = IMDb.getRating(self, imdb_id, details)
-            features["rating_count"] = IMDb.getRatingCount(self, imdb_id, details)
-            features["reviews_count"] = IMDb.getReviewsCount(self, imdb_id, source)
-            features["keywords"] = IMDb.getKeywords(self, imdb_id, details, InList=True)
-            features["filming_location"] = IMDb.getFilmingLocation(self, imdb_id, source, InList)
+            features["rating_count"] = IMDb.getRatingCount(
+                self, imdb_id, details)
+            features["reviews_count"] = IMDb.getReviewsCount(
+                self, imdb_id, source)
+            features["keywords"] = IMDb.getKeywords(
+                self, imdb_id, details, InList=True)
+            features["filming_location"] = IMDb.getFilmingLocation(
+                self, imdb_id, source, InList)
             features["aka"] = IMDb.getAka(self, imdb_id, source, InList)
             features["poster_url"] = IMDb.getPosterURL(self, imdb_id, details)
-            features["trailer_url"] = IMDb.getTrailerURL(self, imdb_id, details)
-            features["trailer_download_url"] = IMDb.getTrailerDownloadURL(self, imdb_id, details)
-            features["trailer_thumbnail_url"] = IMDb.getTrailerThumbnailURL(self, imdb_id, details)
+            features["trailer_url"] = IMDb.getTrailerURL(
+                self, imdb_id, details)
+            features["trailer_download_url"] = IMDb.getTrailerDownloadURL(
+                self, imdb_id, details)
+            features["trailer_thumbnail_url"] = IMDb.getTrailerThumbnailURL(
+                self, imdb_id, details)
         if features != {}:
             return features
 
@@ -384,7 +337,8 @@ class IMDb:
         imdb_id = IMDb.getIdFromSearch(self, imdb_id)
         if imdb_id == "":
             return []
-        source_actors = IMDb.getPage(IMDb.url + "/title/" + imdb_id + "/fullcredits")
+        source_actors = IMDb.getPage(
+            IMDb.url + "/title/" + imdb_id + "/fullcredits")
         cast_list = []
         if source_actors != "":
             full_cast = source_actors.find("table", {"class": "cast_list"})
@@ -395,7 +349,8 @@ class IMDb:
                 cast = {}
                 for row in actor.find_all('td'):
                     if row_number == 1:
-                        cast["actor"] = re.sub(r"[\t\r\n]", "", row.text).strip()
+                        cast["actor"] = re.sub(
+                            r"[\t\r\n]", "", row.text).strip()
                     if row_number == 3:
                         character = re.sub(r"[\t\r\n]", "", row.text).strip()
                         character = re.sub(r" +", " ", character)
@@ -419,14 +374,16 @@ class IMDb:
         imdb_id = IMDb.getIdFromSearch(self, imdb_id)
         features = IMDb.getFeatures(self, imdb_id, seconds, InList, name_id)
         if features is not None:
-            features["cast"] = IMDb.getCast(self, imdb_id, limit, uncredited, all, name_id)
+            features["cast"] = IMDb.getCast(
+                self, imdb_id, limit, uncredited, all, name_id)
             return features
 
     def getAll(self, imdb_id, seconds=False, InList=False, limit=15, uncredited=False, all=False, name_id=False):
         imdb_id = IMDb.getIdFromSearch(self, imdb_id)
         features = IMDb.getAllFeatures(self, imdb_id, seconds, InList, name_id)
         if features is not None:
-            features["cast"] = IMDb.getCast(self, imdb_id, limit, uncredited, all, name_id)
+            features["cast"] = IMDb.getCast(
+                self, imdb_id, limit, uncredited, all, name_id)
             return features
 
     def getPosterURL(self, imdb_id, details=None):
@@ -470,8 +427,10 @@ class IMDb:
             media["imdb_id"] = imdb_id
             media["poster_url"] = IMDb.getPosterURL(self, imdb_id, details)
             media["trailer_url"] = IMDb.getTrailerURL(self, imdb_id, details)
-            media["trailer_download_url"] = IMDb.getTrailerDownloadURL(self, imdb_id, details)
-            media["trailer_thumbnail_url"] = IMDb.getTrailerThumbnailURL(self, imdb_id, details)
+            media["trailer_download_url"] = IMDb.getTrailerDownloadURL(
+                self, imdb_id, details)
+            media["trailer_thumbnail_url"] = IMDb.getTrailerThumbnailURL(
+                self, imdb_id, details)
         if media != {}:
             return media
 
@@ -502,7 +461,8 @@ class IMDb:
                 source = IMDb.getPage(IMDb.getURL(imdb_id))
             if source != "":
                 try:
-                    details1 = source.find("script", type="application/ld+json")
+                    details1 = source.find(
+                        "script", type="application/ld+json")
                     details1 = re.sub(r'<.*?{', '{', str(details1))
                     details1 = re.sub(r'</.*', '', details1)
                     details1 = IMDb.delDoubleQuotes(details1)
@@ -516,7 +476,8 @@ class IMDb:
                     details_json.update(details_json2)
                     return details_json
                 except:
-                    print("An error occured. Please report this issue (error_code=2) or wait for the next update.")
+                    print(
+                        "An error occured. Please report this issue (error_code=2) or wait for the next update.")
                     return ""
             else:
                 return ""
