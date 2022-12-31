@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import json
 import re
 
+# TODO:add logic and handel just one request for each imdb request call
+
 
 class IMDb:
     url = "https://www.imdb.com"

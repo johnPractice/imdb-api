@@ -25,18 +25,20 @@ class IMDBViewSet(generics.GenericAPIView, viewsets.ViewSet):
         input_data_serializer = InputIMDBContentSerializer(data=request.data)
         input_data_serializer.is_valid(raise_exception=True)
         imdb_id = input_data_serializer.data["imdb_code"]
-        if IMDBModel.check_content_exist_with_imdb_id(imdb_id):  # can handel it here or serializer
-            return Response(data={"message": ToastMessages.ITEM_EXISTS.value}, status=status.HTTP_409_CONFLICT)
+
         imdb_data = IMDb().getAllFeatures(imdb_id)
-        new_imdb_content = CreatorIMDBContentSerializer(data=prepare_imdb_model_data(imdb_data))
+        new_imdb_content = CreatorIMDBContentSerializer(
+            data=prepare_imdb_model_data(imdb_data), context={"galleries": IMDb().getGalleriesImage(imdb_id)})
         new_imdb_content.is_valid(raise_exception=True)
-        new_imdb_content.save()
-        return Response(data=new_imdb_content.data, status=status.HTTP_201_CREATED)
+        new_imdb_content = new_imdb_content.save()
+
+        return Response(data=IMDBContentRetrieveSerializer(new_imdb_content).data, status=status.HTTP_201_CREATED)
 
     def list(self, request):
         search_input = request.query_params.get('search', '')
         search_type = request.query_params.get('type', 'all')
-        queryset = IMDBModel.search_with_imdb_id_or_title(search_input=search_input, search_type=search_type)
+        queryset = IMDBModel.search_with_imdb_id_or_title(
+            search_input=search_input, search_type=search_type)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = IMDBContentRetrieveSerializer(page, many=True)

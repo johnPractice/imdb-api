@@ -1,13 +1,14 @@
 from django.db import models
 from djangoProject1.apps.utils.base_model import BaseModel
 from django.db.models import Q
-
+import logging
 
 # maybe we need other provider
 # for this scenario we need abstract model for "Content"
+
+
 class IMDBModel(BaseModel):
-    title = models.CharField(db_index=True
-                             , max_length=300,
+    title = models.CharField(db_index=True, max_length=300,
                              null=False,
                              blank=False, )
     description = models.TextField(blank=True)
@@ -41,7 +42,8 @@ class IMDBModel(BaseModel):
     def search_with_imdb_id_or_title(search_input, search_type):
         imdb_id_query = Q(imdb_id__contains=search_input)
         title_query = Q(title__contains=search_input)
-        query_type = {"title": title_query, 'imdb_id': imdb_id_query, 'both': imdb_id_query | title_query, 'all': Q()}
+        query_type = {"title": title_query, 'imdb_id': imdb_id_query,
+                      'both': imdb_id_query | title_query, 'all': Q()}
         if search_type not in query_type:
             search_type = 'all'
 
@@ -55,6 +57,14 @@ class GalleryModel(BaseModel):
                                      on_delete=models.CASCADE)
     image_url = models.URLField(null=False,
                                 blank=False)  # if use postgres and use ARRAY(Charfield()) we can igonre this part and foreign key
+
+    @staticmethod
+    def create_gallery_for_content_with_list_image(image_list: list[str], imdb_content):
+        for i in image_list:
+            try:
+                GalleryModel(image_url=i, imdb_content=imdb_content).save()
+            except Exception as e:
+                logging.error(e)
 
 
 class RelatedContentModel(BaseModel):
