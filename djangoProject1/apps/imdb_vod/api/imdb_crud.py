@@ -8,7 +8,6 @@ from djangoProject1.apps.imdb_vod.utils.imdb_scraper import IMDb
 from djangoProject1.apps.imdb_vod.models import IMDBModel
 from djangoProject1.apps.utils.messages import ToastMessages
 from djangoProject1.apps.imdb_vod.utils.imdb_creator import prepare_imdb_model_data
-from rest_framework.decorators import action
 
 
 class IMDBViewSet(generics.GenericAPIView, viewsets.ViewSet):
@@ -28,7 +27,7 @@ class IMDBViewSet(generics.GenericAPIView, viewsets.ViewSet):
 
         imdb_data = IMDb().getAllFeatures(imdb_id)
         new_imdb_content = CreatorIMDBContentSerializer(
-            data=prepare_imdb_model_data(imdb_data), context={"galleries": IMDb().getGalleriesImage(imdb_id)})
+            data=prepare_imdb_model_data(imdb_data), context={"galleries": IMDb().getGalleriesImage(imdb_id), 'related_id': IMDb().getRelatedContent(imdb_id)})
         new_imdb_content.is_valid(raise_exception=True)
         new_imdb_content = new_imdb_content.save()
 
@@ -46,10 +45,3 @@ class IMDBViewSet(generics.GenericAPIView, viewsets.ViewSet):
         serializer = IMDBContentRetrieveSerializer(queryset, many=True)
         return Response(serializer.data,
                         status=status.HTTP_200_OK)
-
-    # @action(detail=True, url_path='add-related/')
-    # def add_related_content(self, request, pk=None):
-    #     imdb_content = IMDBModel.get_by_id_or_none(pk)
-    #     if imdb_content is None:
-    #         return Response(data={"message": ToastMessages.USER_iTEM_NOT_FOUND.value}, status=status.HTTP_404_NOT_FOUND)
-    #
